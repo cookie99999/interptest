@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     LParen, RParen, Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
     LetEqual, Equal, Less, LessEqual, Greater, GreaterEqual, Bang, BangEqual,
@@ -21,7 +21,7 @@ pub struct Token {
     pub lexeme: String,
     pub str_literal: String,
     pub num_literal: f32,
-    line: u32,
+    pub line: u32,
 }
 
 impl Token {

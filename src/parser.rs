@@ -3,19 +3,6 @@ use crate::token::Token;
 use crate::token::TokenType;
 use crate::expr::*;
 
-macro_rules! check {
-    ($var:path, $end:expr, $peek:expr) => {
-	if $end {
-	    false
-	} else {
-	    match $peek {
-		$var{..} => true,
-		_ => false,
-	    }
-	}
-    }
-}
-
 macro_rules! type_match {
     ($val:expr, $var:path) => {
 	match $val {
@@ -25,39 +12,21 @@ macro_rules! type_match {
     }
 }
 
-macro_rules! match_token {
-    ($advance:stmt, $end:expr, $peek:expr, $token:path) => {
-	if check!($token, $end, $peek) {
-	    $advance
-	    true
-	} else {
-	    false
-	}
-    };
-    
-    ($advance:stmt, $end:expr, $peek:expr, $token:path, $($tokens:path),+) => {{
-	let mut b: bool = false;
-	if match_token!($advance, $end, $peek, $token) {
-	    b = true;
-	}
-	if match_token!($advance, $end, $peek, $($tokens),+) {
-	    b = true;
-	}
-	b
-    }};
-}
-
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
 }
 
 impl Parser {
-    pub fn new() -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
 	Parser {
-	    tokens: Vec::<Token>::new(),
+	    tokens: tokens,
 	    current: 0,
 	}
+    }
+
+    pub fn parse(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	self.expression()
     }
 
     fn is_at_end(&mut self) -> bool {
@@ -69,7 +38,7 @@ impl Parser {
     }
 
     fn previous(&mut self) -> &Token {
-	&self.tokens[self.current - 1]
+	&self.tokens[self.current.saturating_sub(1)]
     }
 
     fn advance(&mut self) -> &Token {
@@ -79,95 +48,187 @@ impl Parser {
 	self.previous()
     }
 
-    fn expression(&mut self) -> Box<dyn Expr> {
+    fn expression(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	self.equality()
     }
 
-    fn equality(&mut self) -> Box<dyn Expr> {
+    fn equality(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	let mut expr = self.comparison();
-	while match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::BangEqual, TokenType::Equal) {
+
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::BangEqual | TokenType::Equal => {
+		self.advance();
+		true
+	    },
+	    _ => false
+	} {
 	    let operator = self.previous().clone();
 	    let right = self.comparison();
-	    expr = Box::new(Binary::new(expr, operator, right));
+	    match right {
+		Ok(r) => expr = Ok(Box::new(Binary::new(expr?, operator, r))),
+		Err(e) => expr = Err(e),
+	    }
 	}
 	expr
     }
 
-    fn comparison(&mut self) -> Box<dyn Expr> {
+    fn comparison(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	let mut expr = self.term();
-	while match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual) {
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::Greater | TokenType::GreaterEqual |
+	    TokenType::Less | TokenType::LessEqual => {
+		self.advance();
+		true
+	    },
+	    _ => false
+	} {
 	    let operator = self.previous().clone();
 	    let right = self.term();
-	    expr = Box::new(Binary::new(expr, operator, right));
+	    match right {
+		Ok(r) => expr = Ok(Box::new(Binary::new(expr?, operator, r))),
+		Err(e) => expr = Err(e),
+	    }
 	}
 	expr
     }
 
-    fn term(&mut self) -> Box<dyn Expr> {
+    fn term(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	let mut expr = self.factor();
-	while match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::Minus, TokenType::Plus) {
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::Minus | TokenType::Plus => {
+		self.advance();
+		true
+	    },
+	    _ => false
+	} {
 	    let operator = self.previous().clone();
 	    let right = self.factor();
-	    expr = Box::new(Binary::new(expr, operator, right));
+	    match right {
+		Ok(r) => expr = Ok(Box::new(Binary::new(expr?, operator, r))),
+		Err(e) => expr = Err(e),
+	    }
 	}
 	expr
     }
 
-    fn factor(&mut self) -> Box<dyn Expr> {
+    fn factor(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	let mut expr = self.unary();
-	while match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::Slash, TokenType::Star) {
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::Slash | TokenType::Star => {
+		self.advance();
+		true
+	    },
+	    _ => false
+	} {
 	    let operator = self.previous().clone();
 	    let right = self.unary();
-	    expr = Box::new(Binary::new(expr, operator, right));
+	    match right {
+		Ok(r) => expr = Ok(Box::new(Binary::new(expr?, operator, r))),
+		Err(e) => expr = Err(e),
+	    }
 	}
 	expr
     }
 
-    fn unary(&mut self) -> Box<dyn Expr> {
-	if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::Bang, TokenType::Minus) {
+    fn unary(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	if !self.is_at_end() && match self.peek().t_type {
+	    TokenType::Bang | TokenType::Minus => {
+		self.advance();
+		true
+	    },
+	    _ => false
+	} {
 	    let operator = self.previous().clone();
 	    let right = self.unary();
-	    return Box::new(Unary::new(operator, right));
+	    match right {
+		Ok(r) => return Ok(Box::new(Unary::new(operator, r))),
+		Err(e) => return Err(e),
+	    }
 	}
-	self.primary()
-    }
-
-    fn primary(&mut self) -> Box<dyn Expr> {
-	if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::False) {
-	    return Box::new(Literal::BoolLit(false));
-	}
-	else if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::True) {
-	    return Box::new(Literal::BoolLit(true));
-	}
-	else if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::Nil) {
-	    return Box::new(Literal::NilLit);
-	}
-
-	else if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::FloatLit) {
-	    return Box::new(Literal::RealLit(self.previous().num_literal));
-	}
-	else if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::StringLit) {
-	    return Box::new(Literal::StrLit(self.previous().str_literal));
-	}
-
-	else if match_token!(_ = self.advance(), self.is_at_end(), self.peek().t_type, TokenType::LParen) {
-	    let expr = self.expression();
-	    self.consume(TokenType::RParen, "Missing ')' after expression");
-	    return Box::new(Grouping::new(expr));
-	}
-
-	else {
-	    println!("getting to unary() without a valid token should be impossible hopefully");
-	    return Box::new(Literal::StrLit("oops".to_string()));
+	let p = self.primary();
+	match p {
+	    Ok(exp) => Ok(exp),
+	    Err(e) => Err(e),
 	}
     }
 
-    fn consume(&mut self, t_type: TokenType, message: &str) -> Result<Token, Box<dyn Error>> {
-	if check!(t_type, self.is_at_end(), self.peek()) {
-	    Ok(self.advance())
+    fn primary(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	if !self.is_at_end() {
+	    match self.peek().t_type {
+		TokenType::False => {
+		    self.advance();
+		    Ok(Box::new(Literal::BoolLit(false)))
+		},
+		TokenType::True => {
+		    self.advance();
+		    Ok(Box::new(Literal::BoolLit(true)))
+		},
+		TokenType::Nil => {
+		    self.advance();
+		    Ok(Box::new(Literal::NilLit))
+		},
+		TokenType::FloatLit => {
+		    self.advance();
+		    Ok(Box::new(Literal::RealLit(self.previous().num_literal)))
+		},
+		TokenType::StringLit => {
+		    self.advance();
+		    Ok(Box::new(Literal::StrLit(self.previous().str_literal.clone())))
+		},
+		TokenType::LParen => {
+		    self.advance();
+		    let expr = self.expression();
+		    //don't care about return here
+		    match self.consume(|t_type| type_match!(t_type, TokenType::RParen)) {
+			Ok(_) => Ok(Box::new(Grouping::new(expr?))),
+			Err(e) => {
+			    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+					  "missing ')' after expression");
+			    Err(e)
+			},
+		    }
+		}
+		_ => {
+		    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+				  "expression expected");
+		    Err(Box::new(ParseError{}))
+		}
+	    }
 	} else {
-	    println!("{}", message);
+	    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+				  "unfinished expression");
 	    Err(Box::new(ParseError{}))
+	}
+    }
+
+    fn consume(&mut self, f: impl Fn(&'_ TokenType) -> bool) -> Result<&Token, Box<dyn Error>> {
+	if !self.is_at_end() {
+	    if f(&self.peek().t_type) {
+		Ok(self.advance())
+	    } else {
+		Err(Box::new(ParseError{}))
+	    }
+	} else {
+	    Err(Box::new(ParseError{}))
+	}
+    }
+
+    fn synchronize(&mut self) {
+	self.advance();
+	while !self.is_at_end() {
+	    if self.previous().t_type == TokenType::Semicolon {
+		return;
+	    }
+
+	    match self.peek().t_type {
+		TokenType::Function | TokenType::Procedure |
+		TokenType::For | TokenType::If |
+		TokenType::Return | TokenType::Repeat |
+		TokenType::Do | TokenType::Print => return,
+		_ => {},
+	    };
+
+	    self.advance();
 	}
     }
 }
