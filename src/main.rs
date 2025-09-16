@@ -42,7 +42,7 @@ fn run(text: String) {
     s.scan_tokens();
 
     let mut p = Parser::new(s.tokens);
-    println!("{}", p.parse().expect("parse error").print());
+    println!("{:?}", p.parse().unwrap().evaluate().unwrap());
 }
 
 fn prerror(line: u32, msg: &str) {
