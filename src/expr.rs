@@ -217,25 +217,6 @@ pub enum Literal {
     NilLit,
 }
 
-/*pub struct Literal {
-    bool_value: bool,
-    str_value: String,
-    real_value: f32,
-    is_nil: bool,
-}
-
-impl Literal {
-    pub fn new(bool_value: bool, str_value: String,
-    real_value: f32, is_nil: bool) -> Self {
-	Literal {
-	    bool_value: bool_value,
-	    str_value: str_value,
-	    real_value: real_value,
-	    is_nil: is_nil,
-	}
-    }
-}*/
-
 impl Expr for Literal {
     fn print(&self) -> String {
 	match self {

@@ -1,15 +1,9 @@
 use std::env;
 
 mod token;
-use crate::token::TokenType;
-use crate::token::Token;
-
 mod scanner;
 use crate::scanner::Scanner;
-
 mod expr;
-use crate::expr::*;
-
 mod parser;
 use crate::parser::Parser;
 
