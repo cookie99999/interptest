@@ -1,13 +1,27 @@
 use std::error::Error;
+use std::fmt;
 use crate::token::Token;
 use crate::token::TokenType;
 
 #[derive (Debug, PartialEq)]
 pub enum Value {
     RealVal(f32),
+    IntVal(u32),
     StrVal(String),
     BoolVal(bool),
     NilVal,
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	match self {
+	    Value::RealVal(r) => write!(f, "{r}"),
+	    Value::IntVal(i) => write!(f, "{i}"),
+	    Value::StrVal(s) => write!(f, "{s}"),
+	    Value::BoolVal(b) => write!(f, "{b}"),
+	    Value::NilVal => write!(f, "nil"),
+	}
+    }
 }
 
 #[derive (Debug)]
@@ -60,6 +74,9 @@ impl Expr for Binary {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::RealVal(l + r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::IntVal(l + r))
+		    },
 		    //todo: string concat
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
@@ -72,6 +89,9 @@ impl Expr for Binary {
 		match (left, right) {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::RealVal(l - r))
+		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::IntVal(l - r))
 		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
@@ -86,6 +106,9 @@ impl Expr for Binary {
 			//TODO: divide by zero handling
 			Ok(Value::RealVal(l / r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::IntVal(l / r))
+		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
 				  "binary expression type mismatch");
@@ -98,6 +121,9 @@ impl Expr for Binary {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::RealVal(l * r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::IntVal(l * r))
+		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
 				  "binary expression type mismatch");
@@ -108,6 +134,9 @@ impl Expr for Binary {
 	    TokenType::Greater => {
 		match (left, right) {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
+			Ok(Value::BoolVal(l > r))
+		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l > r))
 		    },
 		    _ => {
@@ -122,6 +151,9 @@ impl Expr for Binary {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::BoolVal(l >= r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::BoolVal(l >= r))
+		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
 				  "binary expression type mismatch");
@@ -132,6 +164,9 @@ impl Expr for Binary {
 	    TokenType::Less => {
 		match (left, right) {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
+			Ok(Value::BoolVal(l < r))
+		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l < r))
 		    },
 		    _ => {
@@ -146,6 +181,9 @@ impl Expr for Binary {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::BoolVal(l <= r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::BoolVal(l <= r))
+		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
 				  "binary expression type mismatch");
@@ -156,6 +194,12 @@ impl Expr for Binary {
 	    TokenType::Equal => {
 		match (left, right) {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
+			Ok(Value::BoolVal(l == r))
+		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::BoolVal(l == r))
+		    },
+		    (Value::BoolVal(l), Value::BoolVal(r)) => {
 			Ok(Value::BoolVal(l == r))
 		    },
 		    (Value::NilVal, Value::NilVal) => Ok(Value::BoolVal(true)),
@@ -171,6 +215,36 @@ impl Expr for Binary {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::BoolVal(l != r))
 		    },
+		    (Value::IntVal(l), Value::IntVal(r)) => {
+			Ok(Value::BoolVal(l != r))
+		    },
+		    (Value::BoolVal(l), Value::BoolVal(r)) => {
+			Ok(Value::BoolVal(l != r))
+		    },
+		    _ => {
+			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
+				      "binary expression type mismatch");
+			Err(Box::new(EvalError{}))
+		    },
+		}
+	    },
+	    TokenType::And => {
+		match (left, right) {
+		    (Value::BoolVal(l), Value::BoolVal(r)) => {
+			Ok(Value::BoolVal(l && r))
+		    },
+		    _ => {
+			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
+				      "binary expression type mismatch");
+			Err(Box::new(EvalError{}))
+		    },
+		}
+	    },
+	    TokenType::Or => {
+		match (left, right) {
+		    (Value::BoolVal(l), Value::BoolVal(r)) => {
+			Ok(Value::BoolVal(l || r))
+		    },
 		    _ => {
 			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
 				      "binary expression type mismatch");
@@ -180,7 +254,7 @@ impl Expr for Binary {
 	    },
 	    _ => {
 		//should be unreachable
-		println!("crazy unreachable error in Binary::evaluate");
+		println!("binary operator '{}' supported in parser but not in evaluate", self.operator.lexeme);
 		Err(Box::new(EvalError{}))
 	    },
 	}
@@ -214,6 +288,7 @@ pub enum Literal {
     BoolLit(bool),
     StrLit(String),
     RealLit(f32),
+    IntLit(u32),
     NilLit,
 }
 
@@ -221,7 +296,10 @@ impl Expr for Literal {
     fn print(&self) -> String {
 	match self {
 	    Self::NilLit => format!("nil"),
-	    _ => format!("{:?}", self),
+	    Self::StrLit(s) => format!("{s}"),
+	    Self::RealLit(r) => format!("{r}"),
+	    Self::IntLit(i) => format!("{i}"),
+	    Self::BoolLit(b) => format!("{b}"),
 	}
     }
 
@@ -229,6 +307,7 @@ impl Expr for Literal {
 	match self {
 	    Literal::StrLit(s) => Ok(Value::StrVal(s.to_string())),
 	    Literal::RealLit(r) => Ok(Value::RealVal(*r)),
+	    Literal::IntLit(i) => Ok(Value::IntVal(*i)),
 	    Literal::BoolLit(b) => Ok(Value::BoolVal(*b)),
 	    Literal::NilLit => Ok(Value::NilVal),
 	    //no error possible unless the parsing is buggy

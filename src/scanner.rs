@@ -42,6 +42,7 @@ impl Scanner {
 		("nil", TokenType::Nil),
 		("print", TokenType::Print),
 		("real", TokenType::Real),
+		("int", TokenType::Int),
 		("str", TokenType::Str),
 		("bool", TokenType::Bool),
 		]),
@@ -186,12 +187,14 @@ impl Scanner {
     }
 
     fn number(&mut self) {
+	let mut was_float = false;
 	while let c = self.peek() && self.is_digit(c) {
 	    self.advance();
 	}
 
 	let c = self.peek_next();
 	if self.peek() == '.' && self.is_digit(c) {
+	    was_float = true;
 	    self.advance();
 	    while let c = self.peek() && self.is_digit(c) {
 		self.advance();
@@ -199,7 +202,16 @@ impl Scanner {
 	}
 
 	let numstr = &self.source[self.start..self.current];
-	self.add_token_num(TokenType::FloatLit, numstr.parse::<f32>().unwrap());
+	match was_float {
+	    true => {
+		let number = numstr.parse::<f32>().unwrap();
+		self.tokens.push(Token::new(TokenType::RealLit(number), numstr.to_string(), self.line, String::new()));
+	    },
+	    false => {
+		let number = numstr.parse::<u32>().unwrap();
+		self.tokens.push(Token::new(TokenType::IntLit(number), numstr.to_string(), self.line, String::new()));
+	    },
+	};
     }
 
     fn identifier(&mut self) {
@@ -209,8 +221,8 @@ impl Scanner {
 
 	let text = &self.source[self.start..self.current];
 	match self.keywords.get(text) {
-	    Some(t_type) => self.add_token(*t_type),
-	    None => self.add_token(TokenType::Ident),
+	    Some(t_type) => self.tokens.push(Token::new(t_type.clone(), text.to_string(), self.line, String::new())),
+	    None => self.tokens.push(Token::new(TokenType::Ident, text.to_string(), self.line, String::new())),
 	};
     }
 

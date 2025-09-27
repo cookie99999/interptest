@@ -167,13 +167,15 @@ impl Parser {
 		    self.advance();
 		    Ok(Box::new(Literal::NilLit))
 		},
-		TokenType::FloatLit => {
+		TokenType::RealLit(r) => {
 		    self.advance();
-		    Ok(Box::new(Literal::RealLit(self.previous().num_literal)))
+		    Ok(Box::new(Literal::RealLit(r)))
 		},
+		TokenType::IntLit(i) => {
 		TokenType::StringLit => {
 		    self.advance();
-		    Ok(Box::new(Literal::StrLit(self.previous().str_literal.clone())))
+		    Ok(Box::new(Literal::IntLit(i)))
+		},
 		},
 		TokenType::LParen => {
 		    self.advance();
