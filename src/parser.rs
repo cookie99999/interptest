@@ -154,6 +154,7 @@ impl Parser {
 
     fn primary(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	if !self.is_at_end() {
+	    let strval = self.peek().strval.clone();
 	    match self.peek().t_type {
 		TokenType::False => {
 		    self.advance();
@@ -172,10 +173,12 @@ impl Parser {
 		    Ok(Box::new(Literal::RealLit(r)))
 		},
 		TokenType::IntLit(i) => {
-		TokenType::StringLit => {
 		    self.advance();
 		    Ok(Box::new(Literal::IntLit(i)))
 		},
+		TokenType::StrLit => {
+		    self.advance();
+		    Ok(Box::new(Literal::StrLit(strval)))
 		},
 		TokenType::LParen => {
 		    self.advance();
