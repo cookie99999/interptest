@@ -36,7 +36,12 @@ fn run(text: String) {
     s.scan_tokens();
 
     let mut p = Parser::new(s.tokens);
-    println!("{:?}", p.parse().unwrap().evaluate().unwrap());
+    let ast = p.parse().unwrap();
+    println!("{}", ast.print());
+    match ast.evaluate() {
+	Ok(v) => println!("{v}"),
+	Err(_) => {},
+    };
 }
 
 fn prerror(line: u32, msg: &str) {
