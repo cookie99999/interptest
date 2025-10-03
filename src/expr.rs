@@ -1,13 +1,14 @@
 use std::error::Error;
+use std::rc::Rc;
 use std::fmt;
 use crate::token::Token;
 use crate::token::TokenType;
 
-#[derive (Debug, PartialEq)]
+#[derive (Debug, PartialEq, Clone)]
 pub enum Value {
     RealVal(f32),
     IntVal(u32),
-    StrVal(String),
+    StrVal(Rc<String>),
     BoolVal(bool),
     NilVal,
 }
@@ -286,7 +287,7 @@ impl Expr for Grouping {
 #[derive (Debug)]
 pub enum Literal {
     BoolLit(bool),
-    StrLit(String),
+    StrLit(Rc<String>),
     RealLit(f32),
     IntLit(u32),
     NilLit,
@@ -305,7 +306,7 @@ impl Expr for Literal {
 
     fn evaluate(&self) -> Result<Value, Box<dyn Error>> {
 	match self {
-	    Literal::StrLit(s) => Ok(Value::StrVal(s.to_string())),
+	    Literal::StrLit(s) => Ok(Value::StrVal(s.clone())),
 	    Literal::RealLit(r) => Ok(Value::RealVal(*r)),
 	    Literal::IntLit(i) => Ok(Value::IntVal(*i)),
 	    Literal::BoolLit(b) => Ok(Value::BoolVal(*b)),

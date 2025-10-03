@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::rc::Rc;
 use crate::token::Token;
 use crate::token::TokenType;
 use crate::expr::*;
@@ -154,8 +155,9 @@ impl Parser {
 
     fn primary(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	if !self.is_at_end() {
-	    let strval = self.peek().strval.clone();
-	    match self.peek().t_type {
+	    //the clone is only needed for the string lit
+	    //which feels like something that could be improved
+	    match self.peek().t_type.clone() {
 		TokenType::False => {
 		    self.advance();
 		    Ok(Box::new(Literal::BoolLit(false)))
@@ -176,9 +178,9 @@ impl Parser {
 		    self.advance();
 		    Ok(Box::new(Literal::IntLit(i)))
 		},
-		TokenType::StrLit => {
+		TokenType::StrLit(s) => {
 		    self.advance();
-		    Ok(Box::new(Literal::StrLit(strval)))
+		    Ok(Box::new(Literal::StrLit(s)))
 		},
 		TokenType::LParen => {
 		    self.advance();
