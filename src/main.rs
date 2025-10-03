@@ -1,15 +1,18 @@
 use std::env;
+use std::error::Error;
 
 mod token;
 mod scanner;
 use crate::scanner::Scanner;
 mod expr;
+mod stmt;
 mod parser;
+mod environment;
+use crate::environment::Environment;
 use crate::parser::Parser;
+use crate::stmt::Stmt;
 
 fn main() {
-    let mut had_error: bool = false;
-    
     match env::args().len() {
 	2 => run_file(env::args().nth(1).expect("No 1st argument even though the length matched 1...")),
 	1 => run_prompt(),
@@ -18,30 +21,29 @@ fn main() {
 }
 
 fn run_file(path: String) {
+    let mut i = Interpreter::new();
     let buf: Vec<u8> = std::fs::read(path).unwrap();
-    run(String::from_utf8(buf).expect("run_file: invalid UTF-8 sequence in buf"));
+    run(String::from_utf8(buf).expect("run_file: invalid UTF-8 sequence in buf"), &mut i);
 }
 
 fn run_prompt() {
+    let mut i = Interpreter::new();
     loop {
 	println!("ready");
 	let mut line = String::new();
 	std::io::stdin().read_line(&mut line).unwrap();
-	run(line);
+	run(line, &mut i);
     }
 }
 
-fn run(text: String) {
+fn run(text: String, i: &mut Interpreter) -> Result<(), Box<dyn Error>> {
     let mut s: Scanner = Scanner::new(text);
     s.scan_tokens();
 
     let mut p = Parser::new(s.tokens);
-    let ast = p.parse().unwrap();
-    println!("{}", ast.print());
-    match ast.evaluate() {
-	Ok(v) => println!("{v}"),
-	Err(_) => {},
-    };
+    let ast = p.parse()?;
+    i.interpret(ast);
+    Ok(())
 }
 
 fn prerror(line: u32, msg: &str) {
@@ -50,4 +52,34 @@ fn prerror(line: u32, msg: &str) {
 
 fn report(line: u32, where_at: &str, msg: &str) {
     println!("{line}: Error {where_at}: {msg}");
+}
+
+#[derive (Debug)]
+struct RuntimeError {}
+
+impl std::fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	write!(f, "runtime error")
+    }
+}
+
+impl Error for RuntimeError {}
+
+struct Interpreter {
+    g_env: Environment,
+}
+
+impl Interpreter {
+    pub fn new() -> Self {
+	Interpreter {
+	    g_env: Environment::new(),
+	}
+    }
+
+    pub fn interpret(&mut self, ast: Vec<Stmt>) -> Result<(), Box<dyn Error>> {
+	for stmt in ast.iter() {
+	    stmt.execute(&mut self.g_env)?
+	}
+	Ok(())
+    }
 }

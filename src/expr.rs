@@ -1,8 +1,10 @@
 use std::error::Error;
+use std::any::Any;
 use std::rc::Rc;
 use std::fmt;
 use crate::token::Token;
 use crate::token::TokenType;
+use crate::environment::Environment;
 
 #[derive (Debug, PartialEq, Clone)]
 pub enum Value {
@@ -36,9 +38,23 @@ impl std::fmt::Display for EvalError {
 
 impl Error for EvalError {}
 
+//so far only need this in the assignment parsing,
+//feels like it could be refactored out
+pub enum ExprType {
+    Binary,
+    Unary,
+    Grouping,
+    Literal,
+    Assignment,
+    Variable,
+}
+
 pub trait Expr {
     fn print(&self) -> String;
-    fn evaluate(&self) -> Result<Value, Box<dyn Error>>;
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>>;
+    fn kind(&self) -> ExprType;
+    //another hack only needed for assignment
+    fn as_any(&self) -> &dyn Any;
 }
 
 pub struct Binary {
@@ -65,9 +81,17 @@ impl Expr for Binary {
 		self.left.print(), self.right.print())
     }
 
-    fn evaluate(&self) -> Result<Value, Box<dyn Error>> {
-	let left = self.left.evaluate()?;
-	let right = self.right.evaluate()?;
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn kind(&self) -> ExprType {
+	ExprType::Binary
+    }
+
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
+	let left = self.left.evaluate(env)?;
+	let right = self.right.evaluate(env)?;
 	//todo: decide whether to saturate or wrap arithmetic
 	match self.operator.t_type {
 	    TokenType::Plus => {
@@ -279,8 +303,16 @@ impl Expr for Grouping {
 	format!("(group {})", self.expression.print())
     }
 
-    fn evaluate(&self) -> Result<Value, Box<dyn Error>> {
-	self.expression.evaluate()
+    fn kind(&self) -> ExprType {
+	ExprType::Grouping
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
+	self.expression.evaluate(env)
     }
 }
 
@@ -304,7 +336,15 @@ impl Expr for Literal {
 	}
     }
 
-    fn evaluate(&self) -> Result<Value, Box<dyn Error>> {
+    fn kind(&self) -> ExprType {
+	ExprType::Literal
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn evaluate(&self, _env: &mut Environment) -> Result<Value, Box<dyn Error>> {
 	match self {
 	    Literal::StrLit(s) => Ok(Value::StrVal(s.clone())),
 	    Literal::RealLit(r) => Ok(Value::RealVal(*r)),
@@ -337,8 +377,16 @@ impl Expr for Unary {
 		self.right.print())
     }
 
-    fn evaluate(&self) -> Result<Value, Box<dyn Error>> {
-	let right = self.right.evaluate()?;
+    fn kind(&self) -> ExprType {
+	ExprType::Unary
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
+	let right = self.right.evaluate(env)?;
 
 	match self.operator.t_type {
 	    TokenType::Minus => match right {
@@ -363,5 +411,82 @@ impl Expr for Unary {
 		Err(Box::new(EvalError{}))
 	    },
 	}
+    }
+}
+
+pub struct Assignment {
+    name: Rc<String>,
+    val: Box<dyn Expr>,
+}
+
+impl Assignment {
+    pub fn new(name: String, val: Box<dyn Expr>) -> Self {
+	Assignment {
+	    name: Rc::new(name),
+	    val: val,
+	}
+    }
+}
+
+impl Expr for Assignment {
+    fn print(&self) -> String {
+	format!("(= {} {})", self.name, self.val.print())
+    }
+
+    fn kind(&self) -> ExprType {
+	ExprType::Assignment
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
+	let r_value = self.val.evaluate(env)?;
+	let l_value;
+	l_value = env.get(&self.name)?;
+	match (&l_value, &r_value) {
+	    (Value::IntVal(_), Value::IntVal(_)) |
+	    (Value::RealVal(_), Value::RealVal(_)) |
+	    (Value::StrVal(_), Value::StrVal(_)) |
+	    (Value::NilVal, Value::NilVal) => {
+		env.assign(&self.name, &r_value)?;
+	    },
+	    _ => {
+		println!("type mismatch in {:?} and {:?}", l_value, r_value);
+		return Err(Box::new(EvalError {}));
+	    },
+	};
+	Ok(r_value)
+    }
+}
+
+pub struct Variable {
+    pub name: Rc<String>,
+}
+
+impl Variable {
+    pub fn new(name: String) -> Self {
+	Variable {
+	    name: Rc::new(name),
+	}
+    }
+}
+
+impl Expr for Variable {
+    fn print(&self) -> String {
+	format!("{}", self.name)
+    }
+
+    fn kind(&self) -> ExprType {
+	ExprType::Variable
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
+	env.get(&self.name)
     }
 }

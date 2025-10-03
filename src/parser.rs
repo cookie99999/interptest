@@ -2,6 +2,8 @@ use std::error::Error;
 use crate::token::Token;
 use crate::token::TokenType;
 use crate::expr::*;
+use crate::stmt::Stmt;
+use crate::stmt::StmtType;
 
 macro_rules! type_match {
     ($val:expr, $var:path) => {
@@ -25,8 +27,12 @@ impl Parser {
 	}
     }
 
-    pub fn parse(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
-	self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, Box<dyn Error>> {
+	let mut stmts: Vec<Stmt> = Vec::new();
+	while !self.is_at_end() {
+	    stmts.push(self.declaration()?);
+	}
+	Ok(stmts)
     }
 
     fn is_at_end(&mut self) -> bool {
@@ -37,7 +43,7 @@ impl Parser {
 	&self.tokens[self.current]
     }
 
-    fn previous(&mut self) -> &Token {
+    fn previous(&self) -> &Token {
 	&self.tokens[self.current.saturating_sub(1)]
     }
 
@@ -48,15 +54,188 @@ impl Parser {
 	self.previous()
     }
 
+    fn declaration(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	match self.peek().t_type {
+	    TokenType::Int => {
+		self.advance();
+		self.int_decl()
+	    },
+	    TokenType::Real => {
+		self.advance();
+		self.real_decl()
+	    },
+	    TokenType::Str => {
+		self.advance();
+		self.str_decl()
+	    },
+	    _ => self.statement(),
+	}
+    }
+
+    fn int_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
+	    Ok(t) => t.lexeme.clone(),
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect variable name");
+		return Err(e)
+	    },
+	};
+
+	let initializer: Option<Box<dyn Expr>> = match self.peek().t_type {
+	    TokenType::Equal => {
+		self.advance();
+		Some(self.expression()?)
+	    },
+	    _ => None,
+	};
+
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after declaration");
+		return Err(e)
+	    },
+	};
+
+	Ok(Stmt::new(StmtType::IntDecl(name, initializer)))
+    }
+
+    fn real_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
+	    Ok(t) => t.lexeme.clone(),
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect variable name");
+		return Err(e)
+	    },
+	};
+
+	let initializer: Option<Box<dyn Expr>> = match self.peek().t_type {
+	    TokenType::Equal => {
+		self.advance();
+		Some(self.expression()?)
+	    },
+	    _ => None,
+	};
+
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after declaration");
+		return Err(e)
+	    },
+	};
+
+	Ok(Stmt::new(StmtType::RealDecl(name, initializer)))
+    }
+
+    fn str_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
+	    Ok(t) => t.lexeme.clone(),
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect variable name");
+		return Err(e)
+	    },
+	};
+
+	let initializer: Option<Box<dyn Expr>> = match self.peek().t_type {
+	    TokenType::Equal => {
+		self.advance();
+		Some(self.expression()?)
+	    },
+	    _ => None,
+	};
+
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after declaration");
+		return Err(e)
+	    },
+	};
+
+	Ok(Stmt::new(StmtType::StrDecl(name, initializer)))
+    }
+
+    fn statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	match self.peek().t_type {
+	    TokenType::Print => {
+		self.advance();
+		self.print_stmt()
+	    },
+	    _ => self.expr_stmt(),
+	}
+    }
+
+    fn print_stmt(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	let value = self.expression()?;
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after print value");
+		return Err(e)
+	    },
+	};
+	Ok(Stmt::new(StmtType::Print(value)))
+    }
+
+    fn expr_stmt(&mut self) -> Result<Stmt, Box<dyn Error>> {
+	let expr = self.expression()?;
+		match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after expression");
+		return Err(e)
+	    },
+		};
+	Ok(Stmt::new(StmtType::Expression(expr)))
+    }
+
     fn expression(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
-	self.equality()
+	self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	let mut expr = self.equality()?;
+
+	match self.peek().t_type {
+	    TokenType::Equal => {
+		self.advance();
+		let eq_line = self.previous().line;
+		let eq_lexeme = format!("{}", self.previous().lexeme);
+		let value = self.assignment()?;
+
+		match expr.kind() {
+		    ExprType::Variable => {
+			let name: String = format!("{}", expr.as_any().downcast_ref::<Variable>()
+			    .expect("downcast failed, fix parser::assignment")
+			    .name);
+			expr = Box::new(Assignment::new(name, value));
+		    },
+		    _ => {
+			crate::report(eq_line, &format!(" at '{}'", eq_lexeme),
+				      "invalid l-value");
+			return Err(Box::new(ParseError{}));
+		    },
+		}
+	    },
+	    _ => {},
+	}
+	Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
 	let mut expr = self.comparison();
 
 	while !self.is_at_end() && match self.peek().t_type {
-	    TokenType::BangEqual | TokenType::Equal => {
+	    TokenType::BangEqual | TokenType::EqualEqual => {
 		self.advance();
 		true
 	    },
@@ -193,7 +372,11 @@ impl Parser {
 			    Err(e)
 			},
 		    }
-		}
+		},
+		TokenType::Ident => {
+		    self.advance();
+		    Ok(Box::new(Variable::new(format!("{}", self.previous().lexeme))))
+		},
 		_ => {
 		    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
 				  "expression expected");
