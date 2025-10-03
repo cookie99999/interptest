@@ -4,9 +4,10 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     LParen, RParen, Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
-    LetEqual, Equal, Less, LessEqual, Greater, GreaterEqual, Bang, BangEqual,
+    Equal, EqualEqual, Less, LessEqual, Greater, GreaterEqual, Bang, BangEqual,
     Ident, StrLit(Rc<String>), RealLit(f32), IntLit(u32),
-    Begin, End, Procedure, Function, Return, If, For, Repeat, Until, Else, Do, To, Program, True, False, And, Or, Nil, Print, Real, Int, Str, Bool,
+    Begin, End, Function, Return, If, Then, Else, For, While,
+    True, False, And, Or, Nil, Print, Real, Int, Str, Bool,
     EOF,
 }
 

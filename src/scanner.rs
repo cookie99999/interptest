@@ -25,17 +25,13 @@ impl Scanner {
 	    keywords: HashMap::from([
 		("begin", TokenType::Begin),
 		("end", TokenType::End),
-		("procedure", TokenType::Procedure),
 		("function", TokenType::Function),
 		("return", TokenType::Return),
 		("if", TokenType::If),
-		("for", TokenType::For),
-		("repeat", TokenType::Repeat),
-		("until", TokenType::Until),
+		("then", TokenType::Then),
 		("else", TokenType::Else),
-		("do", TokenType::Do),
-		("to", TokenType::To),
-		("program", TokenType::Program),
+		("for", TokenType::For),
+		("while", TokenType::While),
 		("true", TokenType::True),
 		("false", TokenType::False),
 		("and", TokenType::And),
@@ -76,7 +72,13 @@ impl Scanner {
 	    '+' => self.tokens.push(Token::new(TokenType::Plus, c.to_string(), self.line)),
 	    ';' => self.tokens.push(Token::new(TokenType::Semicolon, c.to_string(), self.line)),
 	    '*' => self.tokens.push(Token::new(TokenType::Star, c.to_string(), self.line)),
-	    '=' => self.tokens.push(Token::new(TokenType::Equal, c.to_string(), self.line)),
+	    '=' => match eq_next {
+		true => {
+		    self.advance();
+		    self.tokens.push(Token::new(TokenType::EqualEqual, "==".to_string(), self.line))
+		},
+		false => self.tokens.push(Token::new(TokenType::Equal, c.to_string(), self.line)),
+	    },
 	    '!' => match eq_next {
 		true => {
 		    self.advance();
@@ -97,13 +99,6 @@ impl Scanner {
 		    self.tokens.push(Token::new(TokenType::GreaterEqual, ">=".to_string(), self.line))
 		},
 		false => self.tokens.push(Token::new(TokenType::Greater, c.to_string(), self.line)),
-	    },
-	    ':' => match eq_next {
-		true => {
-		    self.advance();
-		    self.tokens.push(Token::new(TokenType::LetEqual, ":=".to_string(), self.line))
-		},
-		false => prerror(self.line, "Unexpected character following ':'"),
 	    },
 	    '/' => {
 		if self.check('/') {

@@ -1,12 +1,12 @@
 program -> declaration* EOF ;
 declaration -> var-decl | statement ;
-var-decl -> ("str" | "real" | "int") IDENTIFIER (":=" expression)? ";" ;
+var-decl -> ("str" | "real" | "int") IDENTIFIER ("=" expression)? ";" ;
 statement -> expr-stmt | print-stmt ;
 expr-stmt -> expression ";" ;
 print-stmt -> "print" expression ";" ;
 expression -> assignment ;
-assignment -> IDENTIFIER ":=" assignment | equality ;
-equality -> comparison (("!=" | "=") comparison)* ;
+assignment -> IDENTIFIER "=" assignment | equality ;
+equality -> comparison (("!=" | "==") comparison)* ;
 comparison -> term ((">" | ">=" | "<" | "<=") term)* ;
 term -> factor (("-" | "+") factor)* ;
 factor -> unary (("/" | "*") unary)* ;

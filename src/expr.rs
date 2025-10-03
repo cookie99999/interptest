@@ -192,7 +192,7 @@ impl Expr for Binary {
 		    },
 		}
 	    },
-	    TokenType::Equal => {
+	    TokenType::EqualEqual => {
 		match (left, right) {
 		    (Value::RealVal(l), Value::RealVal(r)) => {
 			Ok(Value::BoolVal(l == r))

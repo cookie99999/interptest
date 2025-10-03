@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::rc::Rc;
 use crate::token::Token;
 use crate::token::TokenType;
 use crate::expr::*;
@@ -228,10 +227,9 @@ impl Parser {
 	    }
 
 	    match self.peek().t_type {
-		TokenType::Function | TokenType::Procedure |
+		TokenType::Function | TokenType::While |
 		TokenType::For | TokenType::If |
-		TokenType::Return | TokenType::Repeat |
-		TokenType::Do | TokenType::Print => return,
+		TokenType::Return | TokenType::Print => return,
 		_ => {},
 	    };
 
