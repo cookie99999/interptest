@@ -3,14 +3,14 @@ use std::error::Error;
 
 mod token;
 mod scanner;
-use crate::scanner::Scanner;
 mod expr;
 mod stmt;
 mod parser;
 mod environment;
-use crate::environment::Environment;
+mod interpreter;
+use crate::scanner::Scanner;
+use crate::interpreter::Interpreter;
 use crate::parser::Parser;
-use crate::stmt::Stmt;
 
 fn main() {
     match env::args().len() {
@@ -64,22 +64,3 @@ impl std::fmt::Display for RuntimeError {
 }
 
 impl Error for RuntimeError {}
-
-struct Interpreter {
-    g_env: Environment,
-}
-
-impl Interpreter {
-    pub fn new() -> Self {
-	Interpreter {
-	    g_env: Environment::new(),
-	}
-    }
-
-    pub fn interpret(&mut self, ast: Vec<Stmt>) -> Result<(), Box<dyn Error>> {
-	for stmt in ast.iter() {
-	    stmt.execute(&mut self.g_env)?
-	}
-	Ok(())
-    }
-}

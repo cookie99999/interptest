@@ -1,14 +1,21 @@
 use std::error::Error;
 use std::rc::Rc;
 use crate::expr::Expr;
-use crate::expr::Value;
-use crate::environment::Environment;
 
 pub enum StmtType {
-    Print(Box<dyn Expr>), Expression(Box<dyn Expr>),
+    Print(Box<dyn Expr>),
+    Expression(Box<dyn Expr>),
     IntDecl(Rc<String>, Option<Box<dyn Expr>>),
     RealDecl(Rc<String>, Option<Box<dyn Expr>>),
     StrDecl(Rc<String>, Option<Box<dyn Expr>>),
+}
+
+pub trait StmtVisitor {
+    fn visit_print(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_expression(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_intdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_realdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_strdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
 }
 
 pub struct Stmt {
@@ -22,65 +29,23 @@ impl Stmt {
 	}
     }
 
-    pub fn execute(&self, env: &mut Environment) -> Result<(), Box<dyn Error>> {
+    pub fn accept(&self, visitor: &mut dyn StmtVisitor) -> Result<(), Box<dyn Error>> {
 	use StmtType::*;
 	match &self.s_type {
-	    Print(e) => {
-		let val = e.evaluate(env)?;
-		println!("{val}");
-		Ok(())
+	    Print(..) => {
+		visitor.visit_print(&self.s_type)
 	    },
-	    Expression(e) => {
-		e.evaluate(env)?;
-		Ok(())
+	    Expression(..) => {
+		visitor.visit_expression(&self.s_type)
 	    },
-	    IntDecl(n, e) => {
-		match e {
-		    Some(ex) => {
-			let v = ex.evaluate(env)?;
-			match v {
-			    Value::IntVal(_) => env.define(n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
-			}
-		    },
-		    None => env.define(n, Value::IntVal(0)),
-		};
-		Ok(())
+	    IntDecl(..) => {
+		visitor.visit_intdecl(&self.s_type)
 	    },
-	    RealDecl(n, e) => {
-		match e {
-		    Some(ex) => {
-			let v = ex.evaluate(env)?;
-			match v {
-			    Value::RealVal(_) => env.define(n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
-			}
-		    },
-		    None => env.define(n, Value::RealVal(0.0)),
-		};
-		Ok(())
+	    RealDecl(..) => {
+		visitor.visit_realdecl(&self.s_type)
 	    },
-	    StrDecl(n, e) => {
-		match e {
-		    Some(ex) => {
-			let v = ex.evaluate(env)?;
-			match v {
-			    Value::StrVal(_) => env.define(n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
-			}
-		    },
-		    None => env.define(n, Value::StrVal(Rc::new(String::new()))),
-		};
-		Ok(())
+	    StrDecl(..) => {
+		visitor.visit_strdecl(&self.s_type)
 	    },
 	}
     }

@@ -3,8 +3,6 @@ use std::any::Any;
 use std::rc::Rc;
 use std::fmt;
 use crate::token::Token;
-use crate::token::TokenType;
-use crate::environment::Environment;
 
 #[derive (Debug, PartialEq, Clone)]
 pub enum Value {
@@ -27,17 +25,6 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive (Debug)]
-struct EvalError {}
-
-impl std::fmt::Display for EvalError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-	write!(f, "evaluation error")
-    }
-}
-
-impl Error for EvalError {}
-
 //so far only need this in the assignment parsing,
 //feels like it could be refactored out
 pub enum ExprType {
@@ -51,16 +38,25 @@ pub enum ExprType {
 
 pub trait Expr {
     fn print(&self) -> String;
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>>;
     fn kind(&self) -> ExprType;
     //another hack only needed for assignment
     fn as_any(&self) -> &dyn Any;
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>>;
+}
+
+pub trait ExprVisitor {
+    fn visit_binary(&mut self, e: &Binary) -> Result<Value, Box<dyn Error>>;
+    fn visit_unary(&mut self, e: &Unary) -> Result<Value, Box<dyn Error>>;
+    fn visit_grouping(&mut self, e: &Grouping) -> Result<Value, Box<dyn Error>>;
+    fn visit_literal(&mut self, e: &Literal) -> Result<Value, Box<dyn Error>>;
+    fn visit_assignment(&mut self, e: &Assignment) -> Result<Value, Box<dyn Error>>;
+    fn visit_variable(&mut self, e: &Variable) -> Result<Value, Box<dyn Error>>;
 }
 
 pub struct Binary {
-    left: Box<dyn Expr>,
-    operator: Token,
-    right: Box<dyn Expr>,
+    pub left: Box<dyn Expr>,
+    pub operator: Token,
+    pub right: Box<dyn Expr>,
 }
 
 impl Binary {
@@ -89,205 +85,13 @@ impl Expr for Binary {
 	ExprType::Binary
     }
 
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	let left = self.left.evaluate(env)?;
-	let right = self.right.evaluate(env)?;
-	//todo: decide whether to saturate or wrap arithmetic
-	match self.operator.t_type {
-	    TokenType::Plus => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::RealVal(l + r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::IntVal(l + r))
-		    },
-		    //todo: string concat
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Minus => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::RealVal(l - r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::IntVal(l - r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Slash => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			//TODO: divide by zero handling
-			Ok(Value::RealVal(l / r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::IntVal(l / r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Star => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::RealVal(l * r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::IntVal(l * r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Greater => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l > r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l > r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::GreaterEqual => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l >= r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l >= r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Less => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l < r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l < r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::LessEqual => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l <= r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l <= r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::EqualEqual => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l == r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l == r))
-		    },
-		    (Value::BoolVal(l), Value::BoolVal(r)) => {
-			Ok(Value::BoolVal(l == r))
-		    },
-		    (Value::NilVal, Value::NilVal) => Ok(Value::BoolVal(true)),
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::BangEqual => {
-		match (left, right) {
-		    (Value::RealVal(l), Value::RealVal(r)) => {
-			Ok(Value::BoolVal(l != r))
-		    },
-		    (Value::IntVal(l), Value::IntVal(r)) => {
-			Ok(Value::BoolVal(l != r))
-		    },
-		    (Value::BoolVal(l), Value::BoolVal(r)) => {
-			Ok(Value::BoolVal(l != r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::And => {
-		match (left, right) {
-		    (Value::BoolVal(l), Value::BoolVal(r)) => {
-			Ok(Value::BoolVal(l && r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    TokenType::Or => {
-		match (left, right) {
-		    (Value::BoolVal(l), Value::BoolVal(r)) => {
-			Ok(Value::BoolVal(l || r))
-		    },
-		    _ => {
-			crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
-		}
-	    },
-	    _ => {
-		//should be unreachable
-		println!("binary operator '{}' supported in parser but not in evaluate", self.operator.lexeme);
-		Err(Box::new(EvalError{}))
-	    },
-	}
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_binary(&self)
     }
 }
 
 pub struct Grouping {
-    expression: Box<dyn Expr>,
+    pub expression: Box<dyn Expr>,
 }
 
 impl Grouping {
@@ -311,8 +115,8 @@ impl Expr for Grouping {
 	self
     }
 
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	self.expression.evaluate(env)
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_grouping(&self)
     }
 }
 
@@ -344,21 +148,14 @@ impl Expr for Literal {
 	self
     }
 
-    fn evaluate(&self, _env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	match self {
-	    Literal::StrLit(s) => Ok(Value::StrVal(s.clone())),
-	    Literal::RealLit(r) => Ok(Value::RealVal(*r)),
-	    Literal::IntLit(i) => Ok(Value::IntVal(*i)),
-	    Literal::BoolLit(b) => Ok(Value::BoolVal(*b)),
-	    Literal::NilLit => Ok(Value::NilVal),
-	    //no error possible unless the parsing is buggy
-	}
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_literal(&self)
     }
 }
 
 pub struct Unary {
-    operator: Token,
-    right: Box<dyn Expr>,
+    pub operator: Token,
+    pub right: Box<dyn Expr>,
 }
 
 impl Unary {
@@ -385,38 +182,14 @@ impl Expr for Unary {
 	self
     }
 
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	let right = self.right.evaluate(env)?;
-
-	match self.operator.t_type {
-	    TokenType::Minus => match right {
-		Value::RealVal(r) => Ok(Value::RealVal(-r)),
-		_ => {
-		    crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "type incompatible with operator");
-		    Err(Box::new(EvalError{}))
-		},
-	    },
-	    TokenType::Bang => match right {
-		Value::BoolVal(b) => Ok(Value::BoolVal(!b)),
-		_ => {
-		    crate::report(self.operator.line, &format!(" at '{}'", self.operator.lexeme),
-				  "type incompatible with operator");
-		    Err(Box::new(EvalError{}))
-		},
-	    },
-	    _ => {
-		//should be unreachable due to parsing logic
-		println!("crazy unreachable error in Unary::evaluate");
-		Err(Box::new(EvalError{}))
-	    },
-	}
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_unary(&self)
     }
 }
 
 pub struct Assignment {
-    name: Rc<String>,
-    val: Box<dyn Expr>,
+    pub name: Rc<String>,
+    pub val: Box<dyn Expr>,
 }
 
 impl Assignment {
@@ -441,23 +214,8 @@ impl Expr for Assignment {
 	self
     }
 
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	let r_value = self.val.evaluate(env)?;
-	let l_value;
-	l_value = env.get(&self.name)?;
-	match (&l_value, &r_value) {
-	    (Value::IntVal(_), Value::IntVal(_)) |
-	    (Value::RealVal(_), Value::RealVal(_)) |
-	    (Value::StrVal(_), Value::StrVal(_)) |
-	    (Value::NilVal, Value::NilVal) => {
-		env.assign(&self.name, &r_value)?;
-	    },
-	    _ => {
-		println!("type mismatch in {:?} and {:?}", l_value, r_value);
-		return Err(Box::new(EvalError {}));
-	    },
-	};
-	Ok(r_value)
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_assignment(&self)
     }
 }
 
@@ -486,7 +244,7 @@ impl Expr for Variable {
 	self
     }
 
-    fn evaluate(&self, env: &mut Environment) -> Result<Value, Box<dyn Error>> {
-	env.get(&self.name)
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_variable(&self)
     }
 }
