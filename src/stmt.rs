@@ -31,6 +31,47 @@ impl Stmt {
 	}
     }
 
+    pub fn print(&self) -> String {
+	use StmtType::*;
+	match &self.s_type {
+	    Print(e) => {
+		format!("(print {})", e.print())
+	    },
+	    Expression(e) => {
+		format!("{}", e.print())
+	    },
+	    IntDecl(n, e) => {
+		format!("(int {n}{}", match e {
+		    Some(ex) => format!(" {})", ex.print()),
+		    None => format!(")"),
+		})
+	    },
+	    RealDecl(n, e) => {
+		format!("(real {n}{}", match e {
+		    Some(ex) => format!(" {})", ex.print()),
+		    None => format!(")"),
+		})
+	    },
+	    StrDecl(n, e) => {
+		format!("(str {n}{}", match e {
+		    Some(ex) => format!(" {})", ex.print()),
+		    None => format!(")"),
+		})
+	    },
+	    Block(s) => {
+		let mut output = String::new();
+		output.push_str("(block\n");
+		for stmt in s {
+		    output.push_str("  ");
+		    output.push_str(&stmt.print());
+		    output.push('\n');
+		}
+		output.push(')');
+		output
+	    },
+	}
+    }
+
     pub fn accept(&self, visitor: &mut dyn StmtVisitor) -> Result<(), Box<dyn Error>> {
 	use StmtType::*;
 	match &self.s_type {

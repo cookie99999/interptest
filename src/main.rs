@@ -42,6 +42,9 @@ fn run(text: String, i: &mut Interpreter) -> Result<(), Box<dyn Error>> {
 
     let mut p = Parser::new(s.tokens);
     let ast = p.parse()?;
+    for stmt in ast.iter() {
+	println!("{}", stmt.print());
+    }
     i.interpret(ast);
     Ok(())
 }
