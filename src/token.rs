@@ -32,7 +32,7 @@ impl Token {
 	    line: line,
 	}
     }
-    
+
     pub fn to_string(&self) -> String {
 	match &self.t_type {
 	    TokenType::RealLit(r) => format!("{r}"),

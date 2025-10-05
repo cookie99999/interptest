@@ -69,7 +69,7 @@ impl Binary {
 	    right: right,
 	}
     }
-}    
+}
 
 impl Expr for Binary {
     fn print(&self) -> String {
