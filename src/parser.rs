@@ -168,8 +168,34 @@ impl Parser {
 		self.advance();
 		self.print_stmt()
 	    },
+	    TokenType::Begin => {
+		self.advance();
+		Ok(Stmt::new(StmtType::Block(self.block()?)))
+	    },
 	    _ => self.expr_stmt(),
 	}
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, Box<dyn Error>> {
+	let mut s = Vec::<Stmt>::new();
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::End => false,
+	    _ => {
+		//self.advance();
+		true
+	    },
+	} {
+	    s.push(self.declaration()?);
+	}
+	match self.consume(|t_type| type_match!(t_type, TokenType::End)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "missing 'end' to block");
+		return Err(e)
+	    },
+	};
+	Ok(s)
     }
 
     fn print_stmt(&mut self) -> Result<Stmt, Box<dyn Error>> {

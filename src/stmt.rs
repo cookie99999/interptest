@@ -8,6 +8,7 @@ pub enum StmtType {
     IntDecl(Rc<String>, Option<Box<dyn Expr>>),
     RealDecl(Rc<String>, Option<Box<dyn Expr>>),
     StrDecl(Rc<String>, Option<Box<dyn Expr>>),
+    Block(Vec<Stmt>),
 }
 
 pub trait StmtVisitor {
@@ -16,6 +17,7 @@ pub trait StmtVisitor {
     fn visit_intdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_realdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_strdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_block(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
 }
 
 pub struct Stmt {
@@ -46,6 +48,9 @@ impl Stmt {
 	    },
 	    StrDecl(..) => {
 		visitor.visit_strdecl(&self.s_type)
+	    },
+	    Block(..) => {
+		visitor.visit_block(&self.s_type)
 	    },
 	}
     }

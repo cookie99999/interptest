@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::rc::Rc;
+use std::cell::RefCell;
 use crate::stmt::{Stmt, StmtType, StmtVisitor};
 use crate::environment::Environment;
 use crate::token::TokenType;
@@ -18,24 +19,36 @@ impl std::fmt::Display for EvalError {
 impl Error for EvalError {}
 
 pub struct Interpreter {
-    env: Vec<Environment>,
-    cur_env: usize,
+    cur_env: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-	let mut i = Interpreter {
-	    env: Vec::<Environment>::new(),
-	    cur_env: 0,
-	};
-	i.env.push(Environment::new()); //global env
-	i
+	Interpreter {
+	    cur_env: Rc::new(RefCell::new(Environment::new(None))),
+	}
     }
 
     pub fn interpret(&mut self, ast: Vec<Stmt>) -> Result<(), Box<dyn Error>> {
 	for stmt in ast.iter() {
-	    stmt.accept(self)?
+	    stmt.accept(self)?;
 	}
+	Ok(())
+    }
+
+    fn exec_block(&mut self, s: &Vec<Stmt>, e: Rc<RefCell<Environment>>) -> Result<(), Box<dyn Error>> {
+	let previous = self.cur_env.clone();
+	self.cur_env = e;
+	for stmt in s.iter() {
+	    match stmt.accept(self) {
+		Ok(_) => {},
+		Err(e) => {
+		    self.cur_env = previous;
+		    return Err(e);
+		},
+	    }
+	}
+	self.cur_env = previous;
 	Ok(())
     }
 }
@@ -260,13 +273,13 @@ impl ExprVisitor for Interpreter {
     fn visit_assignment(&mut self, e: &expr::Assignment) -> Result<Value, Box<dyn Error>> {
 	let r_value = e.val.accept(self)?;
 	let l_value;
-	l_value = self.env[self.cur_env].get(&e.name)?;
+	l_value = (*self.cur_env).borrow().get(&e.name)?;
 	match (&l_value, &r_value) {
 	    (Value::IntVal(_), Value::IntVal(_)) |
 	    (Value::RealVal(_), Value::RealVal(_)) |
 	    (Value::StrVal(_), Value::StrVal(_)) |
 	    (Value::NilVal, Value::NilVal) => {
-		self.env[self.cur_env].assign(&e.name, &r_value)?;
+		(*self.cur_env).borrow_mut().assign(&e.name, &r_value)?;
 	    },
 	    _ => {
 		println!("type mismatch in {:?} and {:?}", l_value, r_value);
@@ -277,7 +290,7 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_variable(&mut self, e: &expr::Variable) -> Result<Value, Box<dyn Error>> {
-	self.env[self.cur_env].get(&e.name)
+	(*self.cur_env).borrow().get(&e.name)
     }
 }
 
@@ -320,14 +333,14 @@ impl StmtVisitor for Interpreter {
 		    Some(ex) => {
 			let v = ex.accept(self)?;
 			match v {
-			    Value::IntVal(_) => self.env[self.cur_env].define(&n, v),
+			    Value::IntVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
 			    _ => {
 				println!("mismatched types {} and {:?}", n, v);
 				return Err(Box::new(crate::RuntimeError {}))
 			    },
 			}
 		    },
-		    None => self.env[self.cur_env].define(&n, Value::IntVal(0)),
+		    None => (*self.cur_env).borrow_mut().define(&n, Value::IntVal(0)),
 		};
 		Ok(())
 	    },
@@ -345,14 +358,14 @@ impl StmtVisitor for Interpreter {
 		    Some(ex) => {
 			let v = ex.accept(self)?;
 			match v {
-			    Value::RealVal(_) => self.env[self.cur_env].define(&n, v),
+			    Value::RealVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
 			    _ => {
 				println!("mismatched types {} and {:?}", n, v);
 				return Err(Box::new(crate::RuntimeError {}))
 			    },
 			}
 		    },
-		    None => self.env[self.cur_env].define(&n, Value::RealVal(0.0)),
+		    None => (*self.cur_env).borrow_mut().define(&n, Value::RealVal(0.0)),
 		};
 		Ok(())
 	    },
@@ -370,17 +383,28 @@ impl StmtVisitor for Interpreter {
 		    Some(ex) => {
 			let v = ex.accept(self)?;
 			match v {
-			    Value::StrVal(_) => self.env[self.cur_env].define(&n, v),
+			    Value::StrVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
 			    _ => {
 				println!("mismatched types {} and {:?}", n, v);
 				return Err(Box::new(crate::RuntimeError {}))
 			    },
 			}
 		    },
-		    None => self.env[self.cur_env].define(&n,
-							  expr::Value::StrVal(Rc::new(String::new()))),
+		    None => (*self.cur_env).borrow_mut().define(&n, expr::Value::StrVal(Rc::new(String::new()))),
 		};
 		Ok(())
+	    },
+	    _ => {
+		println!("theoretically impossible error in StmtVisitor");
+		Err(Box::new(crate::RuntimeError {}))
+	    },
+	}
+    }
+
+    fn visit_block(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>> {
+	match s {
+	    StmtType::Block(s) => {
+		self.exec_block(s, Rc::new(RefCell::new(Environment::new(Some(self.cur_env.clone())))))
 	    },
 	    _ => {
 		println!("theoretically impossible error in StmtVisitor");
