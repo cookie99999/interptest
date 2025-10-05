@@ -412,4 +412,32 @@ impl StmtVisitor for Interpreter {
 	    },
 	}
     }
+
+    fn visit_if(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>> {
+	match s {
+	    StmtType::If(c, t, e) => {
+		match c.accept(self)? {
+		    Value::BoolVal(b) => {
+			if b {
+			    t.accept(self)?;
+			} else {
+			    match e {
+				Some(el) => el.accept(self)?,
+				None => {},
+			    };
+			}
+			Ok(())
+		    },
+		    _ => {
+			println!("conditional expression must be boolean");
+			Err(Box::new(crate::RuntimeError {}))
+		    },
+		}
+	    },
+	    _ => {
+		println!("theoretically impossible error in StmtVisitor");
+		Err(Box::new(crate::RuntimeError {}))
+	    },
+	}
+    }
 }

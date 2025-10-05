@@ -9,6 +9,7 @@ pub enum StmtType {
     RealDecl(Rc<String>, Option<Box<dyn Expr>>),
     StrDecl(Rc<String>, Option<Box<dyn Expr>>),
     Block(Vec<Stmt>),
+    If(Box<dyn Expr>, Box<Stmt>, Option<Box<Stmt>>),
 }
 
 pub trait StmtVisitor {
@@ -18,6 +19,7 @@ pub trait StmtVisitor {
     fn visit_realdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_strdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_block(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_if(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
 }
 
 pub struct Stmt {
@@ -69,6 +71,16 @@ impl Stmt {
 		output.push(')');
 		output
 	    },
+	    If(c, t, e) => {
+		let mut output = String::new();
+		output.push_str("(if ");
+		output.push_str(&format!("{}\n  {}\n", c.print(), t.print()));
+		output.push_str(&match e {
+		    Some(el) => format!("(else \n  {}\n))", el.print()),
+		    None => format!(")"),
+		});
+		output
+	    },
 	}
     }
 
@@ -93,6 +105,9 @@ impl Stmt {
 	    Block(..) => {
 		visitor.visit_block(&self.s_type)
 	    },
+	    If(..) => {
+		visitor.visit_if(&self.s_type)
+	    }
 	}
     }
 }

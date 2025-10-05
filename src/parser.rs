@@ -172,6 +172,10 @@ impl Parser {
 		self.advance();
 		Ok(Stmt::new(StmtType::Block(self.block()?)))
 	    },
+	    TokenType::If => {
+		self.advance();
+		Ok(Stmt::new(self.if_stmt()?))
+	    },
 	    _ => self.expr_stmt(),
 	}
     }
@@ -213,15 +217,47 @@ impl Parser {
 
     fn expr_stmt(&mut self) -> Result<Stmt, Box<dyn Error>> {
 	let expr = self.expression()?;
-		match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
 	    Ok(_) => {},
 	    Err(e) => {
 		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
 			      "expect ';' after expression");
 		return Err(e)
 	    },
-		};
+	};
 	Ok(Stmt::new(StmtType::Expression(expr)))
+    }
+
+    fn if_stmt(&mut self) -> Result<StmtType, Box<dyn Error>> {
+	let cond = self.expression()?;
+	match self.consume(|t_type| type_match!(t_type, TokenType::Then)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect 'then' after if condition");
+		return Err(e)
+	    },
+	};
+
+	let then_stmt = self.statement()?;
+	let else_stmt = match self.peek().t_type {
+	    TokenType::Else => {
+		self.advance();
+		Some(Box::new(self.statement()?))
+	    },
+	    _ => None,
+	};
+
+	match self.consume(|t_type| type_match!(t_type, TokenType::End)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect 'end' after if/else statement");
+		return Err(e)
+	    },
+	};
+
+	Ok(StmtType::If(cond, Box::new(then_stmt), else_stmt))
     }
 
     fn expression(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
