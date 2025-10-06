@@ -10,6 +10,7 @@ pub enum StmtType {
     StrDecl(Rc<String>, Option<Box<dyn Expr>>),
     Block(Vec<Stmt>),
     If(Box<dyn Expr>, Box<Stmt>, Option<Box<Stmt>>),
+    While(Box<dyn Expr>, Box<Stmt>),
 }
 
 pub trait StmtVisitor {
@@ -20,6 +21,7 @@ pub trait StmtVisitor {
     fn visit_strdecl(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_block(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
     fn visit_if(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
+    fn visit_while(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>>;
 }
 
 pub struct Stmt {
@@ -81,6 +83,9 @@ impl Stmt {
 		});
 		output
 	    },
+	    While(c, s) => {
+		format!("(while {}\n  {}\n)", c.print(), s.print())
+	    },
 	}
     }
 
@@ -108,6 +113,9 @@ impl Stmt {
 	    If(..) => {
 		visitor.visit_if(&self.s_type)
 	    }
+	    While(..) => {
+		visitor.visit_while(&self.s_type)
+	    },
 	}
     }
 }

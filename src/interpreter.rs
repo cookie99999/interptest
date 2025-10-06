@@ -483,4 +483,25 @@ impl StmtVisitor for Interpreter {
 	    },
 	}
     }
+
+    fn visit_while(&mut self, s: &StmtType) -> Result<(), Box<dyn Error>> {
+	match s {
+	    StmtType::While(c, s) => {
+		while match c.accept(self)? {
+		    Value::BoolVal(b) => b,
+		    _ => {
+			println!("conditional expression must be boolean");
+			return Err(Box::new(crate::RuntimeError {}));
+		    },
+		} {
+		    s.accept(self)?;
+		}
+	    },
+	    _ => {
+		println!("theoretically impossible error in StmtVisitor");
+		return Err(Box::new(crate::RuntimeError {}));
+	    },
+	}
+	Ok(())
+    }
 }

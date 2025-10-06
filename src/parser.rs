@@ -176,6 +176,10 @@ impl Parser {
 		self.advance();
 		Ok(Stmt::new(self.if_stmt()?))
 	    },
+	    TokenType::While => {
+		self.advance();
+		Ok(Stmt::new(self.while_stmt()?))
+	    },
 	    _ => self.expr_stmt(),
 	}
     }
@@ -239,25 +243,29 @@ impl Parser {
 	    },
 	};
 
-	let then_stmt = self.statement()?;
+	let then_stmt = Stmt::new(StmtType::Block(self.block()?));
 	let else_stmt = match self.peek().t_type {
 	    TokenType::Else => {
 		self.advance();
-		Some(Box::new(self.statement()?))
+		Some(Box::new(Stmt::new(StmtType::Block(self.block()?))))
 	    },
 	    _ => None,
 	};
+	Ok(StmtType::If(cond, Box::new(then_stmt), else_stmt))
+    }
 
-	match self.consume(|t_type| type_match!(t_type, TokenType::End)) {
+    fn while_stmt(&mut self) -> Result<StmtType, Box<dyn Error>> {
+	let cond = self.expression()?;
+	match self.consume(|t_type| type_match!(t_type, TokenType::Do)) {
 	    Ok(_) => {},
 	    Err(e) => {
 		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
-			      "expect 'end' after if/else statement");
+			      "expect 'do' after while condition");
 		return Err(e)
 	    },
 	};
-
-	Ok(StmtType::If(cond, Box::new(then_stmt), else_stmt))
+	let body = Stmt::new(StmtType::Block(self.block()?));
+	Ok(StmtType::While(cond, Box::new(body)))
     }
 
     fn expression(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
@@ -277,8 +285,8 @@ impl Parser {
 		match expr.kind() {
 		    ExprType::Variable => {
 			let name: String = format!("{}", expr.as_any().downcast_ref::<Variable>()
-			    .expect("downcast failed, fix parser::assignment")
-			    .name);
+						   .expect("downcast failed, fix parser::assignment")
+						   .name);
 			expr = Box::new(Assignment::new(name, value));
 		    },
 		    _ => {
@@ -483,7 +491,7 @@ impl Parser {
 	    }
 	} else {
 	    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
-				  "unfinished expression");
+			  "unfinished expression");
 	    Err(Box::new(ParseError{}))
 	}
     }

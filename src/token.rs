@@ -6,7 +6,7 @@ pub enum TokenType {
     LParen, RParen, Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
     Equal, EqualEqual, Less, LessEqual, Greater, GreaterEqual, Bang, BangEqual,
     Ident, StrLit(Rc<String>), RealLit(f32), IntLit(u32),
-    Begin, End, Function, Return, If, Then, Else, For, While,
+    Begin, End, Function, Return, If, Then, Else, For, While, Do,
     True, False, And, Or, Nil, Print, Real, Int, Str, Bool,
     EOF,
 }

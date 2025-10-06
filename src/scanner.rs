@@ -32,6 +32,7 @@ impl Scanner {
 		("else", TokenType::Else),
 		("for", TokenType::For),
 		("while", TokenType::While),
+		("do", TokenType::Do),
 		("true", TokenType::True),
 		("false", TokenType::False),
 		("and", TokenType::And),
