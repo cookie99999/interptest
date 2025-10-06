@@ -292,6 +292,49 @@ impl ExprVisitor for Interpreter {
     fn visit_variable(&mut self, e: &expr::Variable) -> Result<Value, Box<dyn Error>> {
 	(*self.cur_env).borrow().get(&e.name)
     }
+
+    fn visit_logical(&mut self, e: &expr::Logical) -> Result<Value, Box<dyn Error>> {
+	let left = e.left.accept(self)?;
+	match e.operator.t_type {
+	    TokenType::Or => {
+		match left {
+		    Value::BoolVal(b) => {
+			if b {
+			    return Ok(Value::BoolVal(b));
+			}
+		    },
+		    _ => {
+			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
+				      "non boolean value in logical expression");
+			return Err(Box::new(crate::RuntimeError {}));
+		    },
+		}
+	    },
+	    TokenType::And => {
+		match left {
+		    Value::BoolVal(b) => {
+			if !b {
+			    return Ok(Value::BoolVal(b));
+			}
+		    },
+		    _ => {
+			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
+				      "non boolean value in logical expression");
+			return Err(Box::new(crate::RuntimeError {}));
+		    },
+		}
+	    },
+	    _ => panic!("unreachable arm in visit_logical"),
+	}
+	match e.right.accept(self)? {
+	    Value::BoolVal(b) => Ok(Value::BoolVal(b)),
+	    _ => {
+		crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
+			      "non boolean value in logical expression");
+		Err(Box::new(crate::RuntimeError {}))
+	    },
+	}
+    }
 }
 
 impl StmtVisitor for Interpreter {

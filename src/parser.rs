@@ -265,7 +265,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
-	let mut expr = self.equality()?;
+	let mut expr = self.logic_or()?;
 
 	match self.peek().t_type {
 	    TokenType::Equal => {
@@ -289,6 +289,42 @@ impl Parser {
 		}
 	    },
 	    _ => {},
+	}
+	Ok(expr)
+    }
+
+    fn logic_or(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	let mut expr = self.logic_and()?;
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::Or => {
+		self.advance();
+		true
+	    },
+	    _ => {
+		false
+	    },
+	} {
+	    let operator = self.previous().clone();
+	    let right = self.logic_and()?;
+	    expr = Box::new(Logical::new(expr, operator, right));
+	}
+	Ok(expr)
+    }
+
+    fn logic_and(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {
+	let mut expr = self.equality()?;
+	while !self.is_at_end() && match self.peek().t_type {
+	    TokenType::And => {
+		self.advance();
+		true
+	    },
+	    _ => {
+		false
+	    },
+	} {
+	    let operator = self.previous().clone();
+	    let right = self.equality()?;
+	    expr = Box::new(Logical::new(expr, operator, right));
 	}
 	Ok(expr)
     }

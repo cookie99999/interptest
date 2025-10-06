@@ -34,6 +34,7 @@ pub enum ExprType {
     Literal,
     Assignment,
     Variable,
+    Logical,
 }
 
 pub trait Expr {
@@ -51,6 +52,7 @@ pub trait ExprVisitor {
     fn visit_literal(&mut self, e: &Literal) -> Result<Value, Box<dyn Error>>;
     fn visit_assignment(&mut self, e: &Assignment) -> Result<Value, Box<dyn Error>>;
     fn visit_variable(&mut self, e: &Variable) -> Result<Value, Box<dyn Error>>;
+    fn visit_logical(&mut self, e: &Logical) -> Result<Value, Box<dyn Error>>;
 }
 
 pub struct Binary {
@@ -246,5 +248,39 @@ impl Expr for Variable {
 
     fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
 	visitor.visit_variable(&self)
+    }
+}
+
+pub struct Logical {
+    pub left: Box<dyn Expr>,
+    pub operator: Token,
+    pub right: Box<dyn Expr>,
+}
+
+impl Logical {
+    pub fn new(left: Box<dyn Expr>, operator: Token, right: Box<dyn Expr>) -> Self {
+	Logical {
+	    left: left,
+	    operator: operator,
+	    right: right,
+	}
+    }
+}
+
+impl Expr for Logical {
+    fn print(&self) -> String {
+	format!("({} {} {})", self.operator.lexeme, self.left.print(), self.right.print())
+    }
+
+    fn kind(&self) -> ExprType {
+	ExprType::Logical
+    }
+
+    fn as_any(&self) -> &dyn Any {
+	self
+    }
+
+    fn accept(&self, visitor: &mut dyn ExprVisitor) -> Result<Value, Box<dyn Error>> {
+	visitor.visit_logical(&self)
     }
 }
