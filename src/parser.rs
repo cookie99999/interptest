@@ -180,6 +180,10 @@ impl Parser {
 		self.advance();
 		Ok(Stmt::new(self.while_stmt()?))
 	    },
+	    TokenType::For => {
+		self.advance();
+		Ok(Stmt::new(self.for_stmt()?))
+	    },
 	    _ => self.expr_stmt(),
 	}
     }
@@ -266,6 +270,66 @@ impl Parser {
 	};
 	let body = Stmt::new(StmtType::Block(self.block()?));
 	Ok(StmtType::While(cond, Box::new(body)))
+    }
+
+    fn for_stmt(&mut self) -> Result<StmtType, Box<dyn Error>> {
+	let initializer = match self.peek().t_type {
+	    TokenType::Semicolon => {
+		self.advance();
+		None
+	    },
+	    TokenType::Int | TokenType::Real |
+	    TokenType::Str => Some(self.declaration()?),
+	    _ => Some(self.expr_stmt()?),
+	};
+	
+	let condition = if !(self.peek().t_type == TokenType::Semicolon) {
+	    Some(self.expression()?)
+	} else {
+	    None
+	};
+	match self.consume(|t_type| type_match!(t_type, TokenType::Semicolon)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect ';' after for condition");
+		return Err(e)
+	    },
+	};
+
+	let increment = if !(self.peek().t_type == TokenType::Semicolon) {
+	    Some(self.expression()?)
+	} else {
+	    None
+	};
+	match self.consume(|t_type| type_match!(t_type, TokenType::Do)) {
+	    Ok(_) => {},
+	    Err(e) => {
+		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
+			      "expect 'do' after for clauses");
+		return Err(e)
+	    },
+	};
+
+	let mut body = self.block()?;
+	match increment {
+	    Some(e) => body.push(Stmt::new(StmtType::Expression(e))),
+	    None => {},
+	};
+	let body = Stmt::new(StmtType::Block(body));
+
+	let condition = match condition {
+	    Some(e) => e,
+	    None => Box::new(Literal::BoolLit(true)),
+	};
+
+	let body = StmtType::While(condition, Box::new(body));
+	let body = match initializer {
+	    Some(s) => StmtType::Block(vec![s, Stmt::new(body)]),
+	    None => body,
+	};
+
+	Ok(body)
     }
 
     fn expression(&mut self) -> Result<Box<dyn Expr>, Box<dyn Error>> {

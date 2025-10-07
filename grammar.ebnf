@@ -2,12 +2,14 @@ program -> declaration* EOF ;
 declaration -> var-decl | statement ;
 var-decl -> ("str" | "real" | "int") IDENTIFIER ("=" expression)? ";" ;
 statement -> expr-stmt | print-stmt | block
-             | if-stmt | while-stmt ;
+             | if-stmt | while-stmt | for-stmt ;
 block -> "begin" declaration* "end" ;
 expr-stmt -> expression ";" ;
 print-stmt -> "print" expression ";" ;
-if-stmt -> "if" expression "then" statement ("else" statement)? "end" ;
-while-stmt -> "while" expression "do" statement ;
+if-stmt -> "if" expression "then" declaration* ("else" declaration*)? "end" ;
+while-stmt -> "while" expression "do" declaration* "end" ;
+for-stmt -> "for" (var-decl | expr-stmt | ";") expression? ";"
+            expression "do" declaration* "end" ;
 expression -> assignment ;
 assignment -> IDENTIFIER "=" assignment | logic_or ;
 logic_or -> logic_and ("or" logic_and)* ;

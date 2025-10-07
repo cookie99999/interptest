@@ -66,7 +66,6 @@ impl Stmt {
 		let mut output = String::new();
 		output.push_str("(block\n");
 		for stmt in s {
-		    output.push_str("  ");
 		    output.push_str(&stmt.print());
 		    output.push('\n');
 		}
@@ -76,15 +75,15 @@ impl Stmt {
 	    If(c, t, e) => {
 		let mut output = String::new();
 		output.push_str("(if ");
-		output.push_str(&format!("{}\n  {}\n", c.print(), t.print()));
+		output.push_str(&format!("{}\n{}\n", c.print(), t.print()));
 		output.push_str(&match e {
-		    Some(el) => format!("(else \n  {}\n))", el.print()),
+		    Some(el) => format!("(else \n{}\n))", el.print()),
 		    None => format!(")"),
 		});
 		output
 	    },
 	    While(c, s) => {
-		format!("(while {}\n  {}\n)", c.print(), s.print())
+		format!("(while {}\n{}\n)", c.print(), s.print())
 	    },
 	}
     }
