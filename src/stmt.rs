@@ -1,13 +1,13 @@
 use std::error::Error;
-use std::rc::Rc;
 use crate::expr::Expr;
+use crate::token::Token;
 
 pub enum StmtType {
     Print(Box<dyn Expr>),
     Expression(Box<dyn Expr>),
-    IntDecl(Rc<String>, Option<Box<dyn Expr>>),
-    RealDecl(Rc<String>, Option<Box<dyn Expr>>),
-    StrDecl(Rc<String>, Option<Box<dyn Expr>>),
+    IntDecl(Token, Option<Box<dyn Expr>>),
+    RealDecl(Token, Option<Box<dyn Expr>>),
+    StrDecl(Token, Option<Box<dyn Expr>>),
     Block(Vec<Stmt>),
     If(Box<dyn Expr>, Box<Stmt>, Option<Box<Stmt>>),
     While(Box<dyn Expr>, Box<Stmt>),
@@ -45,19 +45,19 @@ impl Stmt {
 		format!("{}", e.print())
 	    },
 	    IntDecl(n, e) => {
-		format!("(int {n}{}", match e {
+		format!("(int {}{}", n.lexeme, match e {
 		    Some(ex) => format!(" {})", ex.print()),
 		    None => format!(")"),
 		})
 	    },
 	    RealDecl(n, e) => {
-		format!("(real {n}{}", match e {
+		format!("(real {}{}", n.lexeme, match e {
 		    Some(ex) => format!(" {})", ex.print()),
 		    None => format!(")"),
 		})
 	    },
 	    StrDecl(n, e) => {
-		format!("(str {n}{}", match e {
+		format!("(str {}{}", n.lexeme, match e {
 		    Some(ex) => format!(" {})", ex.print()),
 		    None => format!(")"),
 		})

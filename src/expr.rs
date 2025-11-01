@@ -190,14 +190,14 @@ impl Expr for Unary {
 }
 
 pub struct Assignment {
-    pub name: Rc<String>,
+    pub name: Token,
     pub val: Box<dyn Expr>,
 }
 
 impl Assignment {
-    pub fn new(name: String, val: Box<dyn Expr>) -> Self {
+    pub fn new(name: Token, val: Box<dyn Expr>) -> Self {
 	Assignment {
-	    name: Rc::new(name),
+	    name: name,
 	    val: val,
 	}
     }
@@ -205,7 +205,7 @@ impl Assignment {
 
 impl Expr for Assignment {
     fn print(&self) -> String {
-	format!("(= {} {})", self.name, self.val.print())
+	format!("(= {} {})", self.name.lexeme, self.val.print())
     }
 
     fn kind(&self) -> ExprType {
@@ -222,20 +222,20 @@ impl Expr for Assignment {
 }
 
 pub struct Variable {
-    pub name: Rc<String>,
+    pub name: Token,
 }
 
 impl Variable {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: Token) -> Self {
 	Variable {
-	    name: Rc::new(name),
+	    name: name,
 	}
     }
 }
 
 impl Expr for Variable {
     fn print(&self) -> String {
-	format!("{}", self.name)
+	format!("{}", self.name.lexeme)
     }
 
     fn kind(&self) -> ExprType {

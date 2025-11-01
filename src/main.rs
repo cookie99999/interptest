@@ -5,12 +5,14 @@ mod token;
 mod scanner;
 mod expr;
 mod stmt;
+mod typecheck;
 mod parser;
 mod environment;
 mod interpreter;
 use crate::scanner::Scanner;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
+use crate::typecheck::TypeChecker;
 
 fn main() {
     match env::args().len() {
@@ -22,21 +24,28 @@ fn main() {
 
 fn run_file(path: String) {
     let mut i = Interpreter::new();
+    let mut t = TypeChecker::new();
     let buf: Vec<u8> = std::fs::read(path).unwrap();
-    run(String::from_utf8(buf).expect("run_file: invalid UTF-8 sequence in buf"), &mut i);
+    match run(String::from_utf8(buf).expect("run_file: invalid UTF-8 sequence in buf"), &mut i, &mut t) {
+	Ok(_) => {},
+	Err(_) => println!("Finished with errors."),
+    };
 }
 
 fn run_prompt() {
     let mut i = Interpreter::new();
+    let mut t = TypeChecker::new();
     loop {
 	println!("ready");
 	let mut line = String::new();
 	std::io::stdin().read_line(&mut line).unwrap();
-	run(line, &mut i);
+	//do nothing with the return since the user will have just typed and seen a single line
+	//and already seen any errors
+	let _ = run(line, &mut i, &mut t);
     }
 }
 
-fn run(text: String, i: &mut Interpreter) -> Result<(), Box<dyn Error>> {
+fn run(text: String, i: &mut Interpreter, t: &mut TypeChecker) -> Result<(), Box<dyn Error>> {
     let mut s: Scanner = Scanner::new(text);
     s.scan_tokens();
 
@@ -45,7 +54,8 @@ fn run(text: String, i: &mut Interpreter) -> Result<(), Box<dyn Error>> {
     for stmt in ast.iter() {
 	println!("{}", stmt.print());
     }
-    i.interpret(ast);
+    t.check(&ast)?;
+    i.interpret(ast)?;
     Ok(())
 }
 

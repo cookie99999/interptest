@@ -74,7 +74,7 @@ impl Parser {
 
     fn int_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
 	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
-	    Ok(t) => t.lexeme.clone(),
+	    Ok(t) => t.clone(),
 	    Err(e) => {
 		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
 			      "expect variable name");
@@ -104,7 +104,7 @@ impl Parser {
 
     fn real_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
 	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
-	    Ok(t) => t.lexeme.clone(),
+	    Ok(t) => t.clone(),
 	    Err(e) => {
 		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
 			      "expect variable name");
@@ -134,7 +134,7 @@ impl Parser {
 
     fn str_decl(&mut self) -> Result<Stmt, Box<dyn Error>> {
 	let name = match self.consume(|t_type| type_match!(t_type, TokenType::Ident)) {
-	    Ok(t) => t.lexeme.clone(),
+	    Ok(t) => t.clone(),
 	    Err(e) => {
 		crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),
 			      "expect variable name");
@@ -348,9 +348,9 @@ impl Parser {
 
 		match expr.kind() {
 		    ExprType::Variable => {
-			let name: String = format!("{}", expr.as_any().downcast_ref::<Variable>()
+			let name = expr.as_any().downcast_ref::<Variable>()
 						   .expect("downcast failed, fix parser::assignment")
-						   .name);
+						   .name.clone();
 			expr = Box::new(Assignment::new(name, value));
 		    },
 		    _ => {
@@ -545,7 +545,7 @@ impl Parser {
 		},
 		TokenType::Ident => {
 		    self.advance();
-		    Ok(Box::new(Variable::new(format!("{}", self.previous().lexeme))))
+		    Ok(Box::new(Variable::new(self.previous().clone())))
 		},
 		_ => {
 		    crate::report(self.peek().line, &format!(" at '{}'", self.peek().lexeme),

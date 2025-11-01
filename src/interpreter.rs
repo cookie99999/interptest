@@ -68,11 +68,7 @@ impl ExprVisitor for Interpreter {
 			Ok(Value::IntVal(l + r))
 		    },
 		    //todo: string concat
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)}, //typechecker already caught type errors
 		}
 	    },
 	    TokenType::Minus => {
@@ -83,11 +79,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::IntVal(l - r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::Slash => {
@@ -99,11 +91,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::IntVal(l / r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::Star => {
@@ -114,11 +102,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::IntVal(l * r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::Greater => {
@@ -129,11 +113,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l > r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::GreaterEqual => {
@@ -144,11 +124,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l >= r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::Less => {
@@ -159,11 +135,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l < r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::LessEqual => {
@@ -174,11 +146,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::IntVal(l), Value::IntVal(r)) => {
 			Ok(Value::BoolVal(l <= r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::EqualEqual => {
@@ -193,11 +161,7 @@ impl ExprVisitor for Interpreter {
 			Ok(Value::BoolVal(l == r))
 		    },
 		    (Value::NilVal, Value::NilVal) => Ok(Value::BoolVal(true)),
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    TokenType::BangEqual => {
@@ -211,11 +175,7 @@ impl ExprVisitor for Interpreter {
 		    (Value::BoolVal(l), Value::BoolVal(r)) => {
 			Ok(Value::BoolVal(l != r))
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "binary expression type mismatch");
-			Err(Box::new(EvalError{}))
-		    },
+		    _ => {Ok(Value::NilVal)},
 		}
 	    },
 	    _ => {
@@ -248,19 +208,11 @@ impl ExprVisitor for Interpreter {
 	match e.operator.t_type {
 	    TokenType::Minus => match right {
 		Value::RealVal(r) => Ok(Value::RealVal(-r)),
-		_ => {
-		    crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				  "type incompatible with operator");
-		    Err(Box::new(EvalError{}))
-		},
+		_ => {Ok(Value::NilVal)},
 	    },
 	    TokenType::Bang => match right {
 		Value::BoolVal(b) => Ok(Value::BoolVal(!b)),
-		_ => {
-		    crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				  "type incompatible with operator");
-		    Err(Box::new(EvalError{}))
-		},
+		_ => {Ok(Value::NilVal)},
 	    },
 	    _ => {
 		//should be unreachable due to parsing logic
@@ -273,24 +225,21 @@ impl ExprVisitor for Interpreter {
     fn visit_assignment(&mut self, e: &expr::Assignment) -> Result<Value, Box<dyn Error>> {
 	let r_value = e.val.accept(self)?;
 	let l_value;
-	l_value = (*self.cur_env).borrow().get(&e.name)?;
+	l_value = (*self.cur_env).borrow().get(&e.name.lexeme)?;
 	match (&l_value, &r_value) {
 	    (Value::IntVal(_), Value::IntVal(_)) |
 	    (Value::RealVal(_), Value::RealVal(_)) |
 	    (Value::StrVal(_), Value::StrVal(_)) |
 	    (Value::NilVal, Value::NilVal) => {
-		(*self.cur_env).borrow_mut().assign(&e.name, &r_value)?;
+		(*self.cur_env).borrow_mut().assign(&e.name.lexeme, &r_value)?;
 	    },
-	    _ => {
-		println!("type mismatch in {:?} and {:?}", l_value, r_value);
-		return Err(Box::new(EvalError {}));
-	    },
+	    _ => {},
 	};
 	Ok(r_value)
     }
 
     fn visit_variable(&mut self, e: &expr::Variable) -> Result<Value, Box<dyn Error>> {
-	(*self.cur_env).borrow().get(&e.name)
+	(*self.cur_env).borrow().get(&e.name.lexeme)
     }
 
     fn visit_logical(&mut self, e: &expr::Logical) -> Result<Value, Box<dyn Error>> {
@@ -303,11 +252,7 @@ impl ExprVisitor for Interpreter {
 			    return Ok(Value::BoolVal(b));
 			}
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "non boolean value in logical expression");
-			return Err(Box::new(crate::RuntimeError {}));
-		    },
+		    _ => {},
 		}
 	    },
 	    TokenType::And => {
@@ -317,22 +262,14 @@ impl ExprVisitor for Interpreter {
 			    return Ok(Value::BoolVal(b));
 			}
 		    },
-		    _ => {
-			crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-				      "non boolean value in logical expression");
-			return Err(Box::new(crate::RuntimeError {}));
-		    },
+		    _ => {},
 		}
 	    },
 	    _ => panic!("unreachable arm in visit_logical"),
 	}
 	match e.right.accept(self)? {
 	    Value::BoolVal(b) => Ok(Value::BoolVal(b)),
-	    _ => {
-		crate::report(e.operator.line, &format!(" at '{}'", e.operator.lexeme),
-			      "non boolean value in logical expression");
-		Err(Box::new(crate::RuntimeError {}))
-	    },
+	    _ => {Ok(Value::NilVal)},
 	}
     }
 }
@@ -377,10 +314,7 @@ impl StmtVisitor for Interpreter {
 			let v = ex.accept(self)?;
 			match v {
 			    Value::IntVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
+			    _ => {},
 			}
 		    },
 		    None => (*self.cur_env).borrow_mut().define(&n, Value::IntVal(0)),
@@ -402,10 +336,7 @@ impl StmtVisitor for Interpreter {
 			let v = ex.accept(self)?;
 			match v {
 			    Value::RealVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
+			    _ => {},
 			}
 		    },
 		    None => (*self.cur_env).borrow_mut().define(&n, Value::RealVal(0.0)),
@@ -427,10 +358,7 @@ impl StmtVisitor for Interpreter {
 			let v = ex.accept(self)?;
 			match v {
 			    Value::StrVal(_) => (*self.cur_env).borrow_mut().define(&n, v),
-			    _ => {
-				println!("mismatched types {} and {:?}", n, v);
-				return Err(Box::new(crate::RuntimeError {}))
-			    },
+			    _ => {},
 			}
 		    },
 		    None => (*self.cur_env).borrow_mut().define(&n, expr::Value::StrVal(Rc::new(String::new()))),
@@ -471,10 +399,7 @@ impl StmtVisitor for Interpreter {
 			}
 			Ok(())
 		    },
-		    _ => {
-			println!("conditional expression must be boolean");
-			Err(Box::new(crate::RuntimeError {}))
-		    },
+		    _ => {Ok(())},
 		}
 	    },
 	    _ => {
@@ -489,10 +414,7 @@ impl StmtVisitor for Interpreter {
 	    StmtType::While(c, s) => {
 		while match c.accept(self)? {
 		    Value::BoolVal(b) => b,
-		    _ => {
-			println!("conditional expression must be boolean");
-			return Err(Box::new(crate::RuntimeError {}));
-		    },
+		    _ => {return Ok(())},
 		} {
 		    s.accept(self)?;
 		}

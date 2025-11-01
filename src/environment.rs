@@ -3,6 +3,7 @@ use std::error::Error;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::expr;
+use crate::token::Token;
 
 pub struct Environment {
     values: HashMap<Rc<String>, expr::Value>,
@@ -17,8 +18,8 @@ impl Environment {
 	}
     }
 
-    pub fn define(&mut self, name: &Rc<String>, value: expr::Value) {
-	self.values.insert(name.clone(), value);
+    pub fn define(&mut self, name: &Token, value: expr::Value) {
+	self.values.insert(name.lexeme.clone(), value);
     }
 
     pub fn get(&self, name: &Rc<String>) -> Result<expr::Value, Box<dyn Error>> {
